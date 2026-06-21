@@ -38,7 +38,10 @@ class ReservationController extends Controller
 
         Reservation::create($request->all());
 
-        return back()->with('swal_success', '¡Reserva agendada! Nuestro equipo se pondrá en contacto para la confirmación de tu espacio.');
+        // Notificar al usuario por whtasapp automáticamente desde el backend y redigigir a la pagina principal o landingpage
+        
+        
+        return redirect()->route('home')->with('success', '¡Reserva realizada con éxito! Nos pondremos en contacto contigo pronto.');
     }
 
     /**

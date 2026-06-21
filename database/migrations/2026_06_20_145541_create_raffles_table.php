@@ -14,8 +14,13 @@ return new class extends Migration
         Schema::create('raffles', function (Blueprint $table) {
             $table->id();
             $table->string('title');
-            $table->string('slug')->unique();
+            $table->string('slug')->unique()->nullable();
             $table->text('description')->nullable();
+            $table->string('image_path')->nullable();
+            $table->string('organizer')->nullable();
+            $table->string('contact_info')->nullable();
+            $table->string('social_media_url')->nullable();            
+            $table->tinyInteger('prize_type')->default(1)->comment('1=Dinero, 2=Artículo');
             $table->decimal('jackpot_prize', 15, 2);
             $table->decimal('ticket_price', 12, 2);
             $table->string('reference_lottery');

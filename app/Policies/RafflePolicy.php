@@ -15,7 +15,7 @@ class RafflePolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_raffle');
+        return $user->can('view_raffles');
     }
 
     /**
@@ -23,7 +23,7 @@ class RafflePolicy
      */
     public function view(User $user, Raffle $raffle): bool
     {
-        return $user->can('view_raffle');
+        return $user->can('view_raffles');
     }
 
     /**
@@ -31,7 +31,7 @@ class RafflePolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -39,7 +39,7 @@ class RafflePolicy
      */
     public function update(User $user, Raffle $raffle): bool
     {
-        return $user->can('update_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -47,7 +47,7 @@ class RafflePolicy
      */
     public function delete(User $user, Raffle $raffle): bool
     {
-        return $user->can('delete_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -55,7 +55,7 @@ class RafflePolicy
      */
     public function deleteAny(User $user): bool
     {
-        return $user->can('delete_any_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -63,7 +63,7 @@ class RafflePolicy
      */
     public function forceDelete(User $user, Raffle $raffle): bool
     {
-        return $user->can('force_delete_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -71,7 +71,7 @@ class RafflePolicy
      */
     public function forceDeleteAny(User $user): bool
     {
-        return $user->can('force_delete_any_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -79,7 +79,7 @@ class RafflePolicy
      */
     public function restore(User $user, Raffle $raffle): bool
     {
-        return $user->can('restore_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -87,7 +87,7 @@ class RafflePolicy
      */
     public function restoreAny(User $user): bool
     {
-        return $user->can('restore_any_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -95,7 +95,7 @@ class RafflePolicy
      */
     public function replicate(User $user, Raffle $raffle): bool
     {
-        return $user->can('replicate_raffle');
+        return $user->can('manage_raffles');
     }
 
     /**
@@ -103,6 +103,6 @@ class RafflePolicy
      */
     public function reorder(User $user): bool
     {
-        return $user->can('reorder_raffle');
+        return $user->can('manage_raffles');
     }
 }

@@ -17,7 +17,7 @@ class FilamentAdminOnly
     {
         // 1. Primero verificamos si está autenticado
         if (!auth()->check()) {
-            return redirect()->route('login');
+            return redirect()->route('filament.admin.auth.login');
         }
 
         // 2. Luego verificamos si tiene el rol de admin

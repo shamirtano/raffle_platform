@@ -10,6 +10,7 @@ use Filament\Pages;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Enums\MaxWidth;
 use Filament\Widgets;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
@@ -30,11 +31,11 @@ class AdminPanelProvider extends PanelProvider
             ->userMenuItems([                
                 /*Pages\Account\AccountPage::class => [
                     'label' => 'Mi Cuenta',
-                    'icon' => 'heroicon-o-user',
+                    'icon' => 'heroicon-m-user',
                 ],
                 Pages\Auth\Logout::class => [
                     'label' => 'Cerrar Sesión',
-                    'icon' => 'heroicon-o-arrow-right-on-rectangle',
+                    'icon' => 'heroicon-m-arrow-right-on-rectangle',
                 ],*/
             ])
             ->colors([
@@ -47,7 +48,8 @@ class AdminPanelProvider extends PanelProvider
                 'gray' => Color::hex('#6b7280'),
                 'dark' => Color::hex('#111827'),
                 'light' => Color::hex('#f3f4f6'),
-            ])
+            ])            
+            ->maxContentWidth(MaxWidth::Full)
             ->renderHook(
                 'panels::body.start',
                 fn (): string => '<style>

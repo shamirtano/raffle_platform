@@ -1,12 +1,14 @@
 <x-alerts />
 
-    <!-- BANNER DE COOKIES (Profesionalismo & Legal) -->
-    <div x-show="cookieModal" class="fixed bottom-5 left-5 right-5 md:max-w-md bg-stone-950/95 border border-stone-800 p-5 rounded-2xl shadow-2xl z-50 flex flex-col gap-3 backdrop-blur-md" style="display: none;">
-        <p class="text-xs text-stone-400 leading-relaxed">
-            Utilizamos cookies propias para garantizar la mejor experiencia en nuestro portal de reservas y dinámicas de sorteos. Al continuar navegando, aceptas nuestra <a href="#politicas" @click="cookieModal = false" class="text-amber-500 underline">Política de Privacidad</a>.
-        </p>
-        <button @click="cookieModal = false" class="bg-amber-500 text-stone-950 text-xs font-bold py-2 px-4 rounded-lg self-end hover:bg-amber-400 transition-all">Aceptar</button>
-    </div>
+    <!-- BANNER DE COOKIES - desactivar si se aceptan las cookies -->
+    <div x-data="{ show: !localStorage.getItem('cookies_accepted') }" x-show="show" class="fixed bottom-0 inset-x-0 bg-stone-950/90 backdrop-blur-md border-t border-stone-800/40 z-50 p-4 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div class="text-sm text-stone-400">
+            🍪 Usamos cookies para mejorar tu experiencia. Al continuar navegando, aceptas nuestra <a href="#" class="text-amber-500 hover:underline">Política de Cookies</a>.
+        </div>
+        <button @click="localStorage.setItem('cookies_accepted', 'true'); show = false;" class="bg-amber-500 hover:bg-amber-400 text-stone-950 text-xs font-bold px-4 py-2 rounded-lg transition-all">
+            Aceptar Cookies
+        </button>
+    </div>    
 
     <!-- BOTÓN FLOTANTE WHATSAPP (Listo para integración de Bot/API) -->
     <a href="https://api.whatsapp.com/send?phone=573000000000&text=Hola!%20Me%20gustaría%20obtener%20información%20sobre%20las%20reservaciones%20o%20el%20módulo%20de%20participación." 

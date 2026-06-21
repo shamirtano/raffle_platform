@@ -15,7 +15,9 @@ class ListUsers extends ListRecords
         return [
             Actions\CreateAction::make()
                 ->label('Crear Nuevo Usuario')
-                ->icon('heroicon-o-user-plus'),
+                ->icon('heroicon-m-plus')
+                ->button()
+                ->color('primary'),
         ];
     }
 }

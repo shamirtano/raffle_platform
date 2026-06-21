@@ -16,7 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
-    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationIcon = 'heroicon-m-users';
     protected static ?string $navigationGroup = 'Gestión de Sistema';
     protected static ?string $modelLabel = 'Usuario';
     protected static ?string $pluralModelLabel = 'Usuarios';
@@ -27,7 +27,7 @@ class UserResource extends Resource
     public static function canAccess(): bool
     {
         $user = auth()->user();
-        return $user && ($user->can('manage-users'));
+        return $user && ($user->can('view_users') || $user->can('manage_users'));
     }
 
     public static function form(Form $form): Form
@@ -69,8 +69,8 @@ class UserResource extends Resource
                 Tables\Columns\IconColumn::make('status')
                     ->boolean()
                     ->label('Activo')
-                    ->trueIcon('heroicon-o-check-circle')
-                    ->falseIcon('heroicon-o-x-circle'),
+                    ->trueIcon('heroicon-m-check-circle')
+                    ->falseIcon('heroicon-m-x-circle'),
                 Tables\Columns\TagsColumn::make('roles.display_name')->label('Roles'),
             ])
             ->filters([

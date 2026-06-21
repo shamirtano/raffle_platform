@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Raffle;
 use App\Models\Ticket;
+use App\Models\TicketOrder;
 use Illuminate\Http\Request;
 
 class RaffleController extends Controller
@@ -40,16 +41,45 @@ class RaffleController extends Controller
     public function show($id)
     {
         $raffle = Raffle::findOrFail($id);
-        
-        // Obtener números vendidos para esta rifa
-        $soldTickets = Ticket::where('raffle_id', $raffle->id)
-            ->pluck('ticket_number')
-            ->toArray();
 
-        // Calcular el rango total (Ej: 3 cifras = 1000 números, de 000 a 999)
+        // 1. Números Procesados / Vendidos -> Color Rojo
+        $soldTickets = Ticket::where('raffle_id', $raffle->id)            
+            ->get()
+            ->flatMap(function ($ticket) {
+                // Si guardas estructurado como {"numbers": [...]} extraes la key, si es array directo dejas $ticket->ticket_numbers
+                $data = $ticket->ticket_numbers;
+                return isset($data['numbers']) ? $data['numbers'] : $data;
+            })->toArray();
+
+        $soldTicketsPaid = Ticket::where('raffle_id', $raffle->id)
+            ->where('payment_status', 'PAID')
+            ->get()
+            ->flatMap(function ($ticket) {
+                $data = $ticket->ticket_numbers;
+                return isset($data['numbers']) ? $data['numbers'] : $data;
+            })->toArray();
+
+        // 2. Números en Pedidos Pendientes -> Color Gris
+        $pendingTickets = TicketOrder::where('raffle_id', $raffle->id)
+            ->where('status', 'pending')
+            ->get()
+            ->flatMap(function ($order) {
+                return $order->ticket_numbers ?? [];
+            })->toArray();
+
         $totalNumbers = pow(10, $raffle->digits_count);
+        $soldNumbersCount = count($soldTickets);
+        $availableNumbersCount = $totalNumbers - $soldNumbersCount - count($pendingTickets);
 
-        return view('raffles.show', compact('raffle', 'soldTickets', 'totalNumbers'));
+        return view('raffles.show', compact(
+            'raffle',
+            'soldTickets',
+            'soldTicketsPaid',
+            'pendingTickets',
+            'totalNumbers',
+            'soldNumbersCount',
+            'availableNumbersCount'
+        ));
     }
 
     /**

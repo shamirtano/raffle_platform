@@ -25,9 +25,9 @@
 
         <!-- Auth Toggle -->
         @auth
-            <a href="{{ url('/dashboard') }}" class="bg-stone-800 hover:bg-stone-700 text-white px-4 py-2 rounded-lg transition-all">Dashboard</a>
+            <a href="{{ url('/admin') }}" class="bg-stone-800 hover:bg-stone-700 text-white px-4 py-2 rounded-lg transition-all">Dashboard</a>
         @else
-            <a href="{{ route('login') }}" class="text-amber-500 hover:text-amber-400">Ingresar</a>
+            <a href="{{ route('filament.admin.auth.login') }}" class="text-amber-500 hover:text-amber-400">Ingresar</a>
         @endauth
     </div>
 
@@ -38,9 +38,9 @@
         <a href="{{ route('home') }}#reservar" @click="open = false">Reservas</a>
         
         @auth
-            <a href="{{ url('/dashboard') }}" class="bg-stone-800 text-white p-3 rounded-lg text-center">Ir al Dashboard</a>
+            <a href="{{ url('/admin') }}" class="bg-stone-800 text-white p-3 rounded-lg text-center">Ir al Dashboard</a>
         @else
-            <a href="{{ route('login') }}" class="bg-amber-500 text-stone-950 p-3 rounded-lg text-center">Ingresar / Login</a>
+            <a href="{{ route('filament.admin.auth.login') }}" class="bg-amber-500 text-stone-950 p-3 rounded-lg text-center">Ingresar / Login</a>
         @endauth
     </div>
 </nav>

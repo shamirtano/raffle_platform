@@ -6,6 +6,7 @@ use App\Filament\Resources\TicketResource\Pages;
 use App\Filament\Resources\TicketResource\RelationManagers;
 use App\Models\Raffle;
 use App\Models\Ticket;
+use App\Models\Package;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -21,28 +22,21 @@ use Filament\Forms\Components\TagsInput;
 use Filament\Forms\Components\Actions\Action;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Select;
-use App\Models\Package;
 
 class TicketResource extends Resource
 {
     protected static ?string $model = Ticket::class;
-    protected static ?string $navigationIcon = 'heroicon-o-ticket';
+    protected static ?string $navigationIcon = 'heroicon-m-ticket';
     protected static ?string $modelLabel = 'Boleta o Ticket';
     protected static ?string $pluralModelLabel = 'Boletas o Tickets';
 
     /**
      * Manejar los permisos de usuario para acceder a este recurso
      */
-    public static function canViewAny(): bool
+    public static function canAccess(): bool
     {
-        // Permitir a admins y vendedores ver la lista
-        return auth()->user()->hasAnyRole(['admin', 'seller', 'partner']);
-    }
-
-    public static function canCreate(): bool
-    {
-        // Solo permitir crear si eres admin o vendedor
-        return auth()->user()->hasAnyRole(['admin', 'seller', 'partner']);
+        $user = auth()->user();
+        return $user && ($user->can('view_tickets') || $user->can('sell_tickets') || $user->can('manage_tickets'));
     }
 
     public static function form(Form $form): Form
@@ -78,24 +72,31 @@ class TicketResource extends Resource
                             function ($get) {
                                 return function (string $attribute, $value, $fail) use ($get) {
                                     $raffleId = $get('raffle_id');
-                                    // Buscamos la rifa para obtener su configuración
+
+                                    if (empty($raffleId)) {
+                                        $fail("Debes seleccionar una rifa primero.");
+                                        return;
+                                    }
+
                                     $raffle = \App\Models\Raffle::find($raffleId);
-                                    $length = $raffle ? $raffle->digits_count : 3; // Por defecto 3 cifras
+                                    $length = $raffle ? $raffle->digits_count : 3;
 
                                     foreach ($value as $number) {
-                                        // 1. Validar longitud de cifras
-                                        if (strlen((string)$number) !== $length) {
+                                        $number = (string)$number;
+
+                                        // Validar longitud
+                                        if (strlen($number) !== $length) {
                                             $fail("El número {$number} debe tener exactamente {$length} cifras.");
                                         }
 
-                                        // 2. Validar que no esté vendido
+                                        // Validar que no esté vendido por otro vendedor o comprado
                                         $exists = \App\Models\Ticket::where('raffle_id', $raffleId)
                                             ->whereJsonContains('ticket_numbers', $number)
-                                            ->where('id', '!=', $get('id'))
+                                            ->where('id', '!=', $get('id') ?? 0)
                                             ->exists();
 
                                         if ($exists) {
-                                            $fail("El número {$number} ya está vendido para esta rifa.");
+                                            $fail("El número {$number} ya ha sido vendido o asignado en esta rifa.");
                                         }
                                     }
                                 };
@@ -103,19 +104,69 @@ class TicketResource extends Resource
                         ])
                         ->suffixAction(
                             Action::make('generarAleatorios')
-                                ->icon('heroicon-o-sparkles')
-                                ->label('Generar')
-                                ->action(function ($state, $get, $set) {
-                                    $count = $get('numbers_count') ?: 5;
+                                ->icon('heroicon-m-sparkles')
+                                ->label('Generar Aleatorios')
+                                ->action(function ($get, $set) {
                                     $raffleId = $get('raffle_id');
+
+                                    // Validación: Debe haber seleccionado una rifa
+                                    if (empty($raffleId)) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Error')
+                                            ->body('Debes seleccionar una rifa antes de generar números.')
+                                            ->danger()
+                                            ->send();
+                                        return;
+                                    }
+
+                                    $raffle = \App\Models\Raffle::find($raffleId);
+                                    if (!$raffle) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Error')
+                                            ->body('Rifa no encontrada.')
+                                            ->danger()
+                                            ->send();
+                                        return;
+                                    }
+
+                                    $length = $raffle->digits_count;
+                                    $count = $get('numbers_count') ?: 5;
+
                                     $randomNumbers = [];
-                                    while (count($randomNumbers) < $count) {
-                                        $num = (string)rand(100, 999);
-                                        if (!in_array($num, $randomNumbers) && 
-                                            !\App\Models\Ticket::where('raffle_id', $raffleId)->whereJsonContains('ticket_numbers', $num)->exists()) {
+                                    $attempts = 0;
+                                    $maxAttempts = 200; // Mayor seguridad
+
+                                    while (count($randomNumbers) < $count && $attempts < $maxAttempts) {
+                                        $attempts++;
+
+                                        $min = pow(10, $length - 1);
+                                        $max = pow(10, $length) - 1;
+                                        $num = (string) rand($min, $max);
+
+                                        // Verificar que no esté duplicado en esta generación
+                                        if (in_array($num, $randomNumbers)) {
+                                            continue;
+                                        }
+
+                                        // Verificar que NO esté vendido por otro vendedor
+                                        $yaVendido = \App\Models\Ticket::where('raffle_id', $raffleId)
+                                            ->whereJsonContains('ticket_numbers', $num)
+                                            ->exists();
+
+                                        if (!$yaVendido) {
                                             $randomNumbers[] = $num;
                                         }
                                     }
+
+                                    if (empty($randomNumbers)) {
+                                        \Filament\Notifications\Notification::make()
+                                            ->title('Sin números disponibles')
+                                            ->body('No se encontraron números disponibles. La rifa puede estar casi llena.')
+                                            ->warning()
+                                            ->send();
+                                        return;
+                                    }
+
                                     $set('ticket_numbers', $randomNumbers);
                                 })
                         ),
@@ -142,8 +193,24 @@ class TicketResource extends Resource
             })
             ->columns([
                 Tables\Columns\TextColumn::make('raffle.title')->label('Rifa')->searchable(),
-                Tables\Columns\TextColumn::make('customer_name')->label('Cliente'),
-                Tables\Columns\TextColumn::make('ticket_numbers')->label('Números'),
+                Tables\Columns\TextColumn::make('customer_name')->label('Cliente')->searchable(),
+                Tables\Columns\TextColumn::make('ticket_numbers')->label('Números')
+                    ->formatStateUsing(function ($state) {
+                        if (is_array($state)) {
+                            return implode(', ', $state);
+                        }
+                        return $state;
+                    })
+                    ->wrap()
+                    ->searchable(),                
+                Tables\Columns\TextColumn::make('total_price')
+                    ->label('Valor')
+                    ->getStateUsing(function (Ticket $record) {
+                        $raffle = $record->raffle;
+                        $ticketCount = is_array($record->ticket_numbers) ? count($record->ticket_numbers) : 0;
+                        return $raffle ? '$' . number_format($ticketCount * $raffle->ticket_price, 0, ',', '.') : '$0';
+                    }),
+
                 Tables\Columns\BadgeColumn::make('payment_status')
                     ->label('Estado de Pago')
                     ->formatStateUsing(fn ($state) => __($state))
@@ -159,60 +226,79 @@ class TicketResource extends Resource
             ])
             ->actions([
                 Tables\Actions\Action::make('descargarTicket')
-                    ->label('Ticket PDF')
-                    ->icon('heroicon-o-document-arrow-down')
-                    ->color('success')
-                    ->action(function (Ticket $record) {
-                        $pdf = Pdf::loadView('pdf.ticket', ['ticket' => $record]);
-                        return response()->streamDownload(
-                            fn () => print($pdf->output()),
-                            "ticket-{$record->id}.pdf"
-                        );
-                    }),
-                // Enviar por Whatsapp, agregar ícono y acción para enviar el ticket por WhatsApp --- IGNORE ---
+                    ->label('Descargar Ticket')
+                    ->tooltip('Descargar Ticket en PDF')
+                    ->icon('heroicon-m-document-arrow-down')
+                    ->color('danger')
+                    ->iconButton(),
+                // Enviar por Whatsapp, agregar ícono y acción para enviar el ticket por WhatsApp
                 Tables\Actions\Action::make('enviarWhatsApp')
-                    ->label('Enviar por WhatsApp')
-                    ->icon('heroicon-o-chat-bubble-left-right')
-                    ->color('info')
+                    ->label('Enviar WhatsApp')
+                    ->tooltip('Enviar detalles del ticket por WhatsApp')
+                    ->icon('heroicon-m-chat-bubble-left-right')
+                    ->color('success')
+                    ->iconButton()
                     ->url(function (Ticket $record) {
                         $numero = preg_replace('/[^0-9]/', '', $record->customer_phone);
+                        if (strlen($numero) === 10 && str_starts_with($numero, '3')) {
+                            $numero = '57' . $numero;
+                        }
+
                         $numerosList = implode(', ', $record->ticket_numbers);
-                        $urlResultados = "https://tudominio.com/resultados";
-                        $estadoPago = __($record->payment_status);
+                        $urlResultados = "https://tudominio.com/resultados"; 
+                        
+                        // 🌟 CORREGIDO: Definición de la variable faltante
+                        $estadoPago = 'PENDIENTE';
 
+                        // 🌟 CORREGIDO: Texto alineado a la izquierda para evitar espacios raros en WhatsApp
                         $mensaje = <<<WHATSAPP
-                        🎉 *¡Felicidades {$record->customer_name}!* 🎉
+                            🎉 *¡Felicidades {$record->customer_name}!* 🎉
 
-                        🍀 ¡Bienvenido/a a *El Palomo Negro*! 🍀
+                            🍀 ¡Bienvenido/a a *El Palomo Negro*! 🍀         
+                                    
+                            Estás participando en la rifa:
 
-                        Estás participando en la rifa:
+                            🔥 *{$record->raffle->title}* 🔥
 
-                        🔥 *{$record->raffle->title}* 🔥
+                            🎟️ *Tus números de suerte:*
+                            {$numerosList}
 
-                        🎟️ *Tus números de suerte:*
-                        {$numerosList}
+                            Estado del pago: *{$estadoPago}*
 
-                        Estado del pago: *{$estadoPago}*
+                            Puedes realizar tu pagos mediante Nequi, Bancolombia o en Efectivo en nuestras oficinas.
 
-                        Puedes realizar tu pagos mediante Nequi, Bancolombia o en Efectivo en nuestras oficinas.
+                            📲 *Revisa los resultados aquí:*
+                            👉 {$urlResultados}
 
-                        📲 *Revisa los resultados aquí:*
-                        👉 {$urlResultados}
+                            ✨ ¡Que la suerte te acompañe y cruces los dedos! ✨
 
-                        ✨ ¡Que la suerte te acompañe y cruces los dedos! ✨
-
-                        ¿Tienes alguna duda? Escríbenos 😊
-                        WHATSAPP;
+                            ¿Tienes alguna duda? Escríbenos 😊
+                            WHATSAPP;
 
                             $textEncoded = rawurlencode($mensaje);
 
                             return "https://api.whatsapp.com/send?phone={$numero}&text={$textEncoded}";
                         })
                     ->openUrlInNewTab(),
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
-            ])
+                Tables\Actions\ViewAction::make()
+                    ->label('Ver Detalles')
+                    ->tooltip('Ver Detalles del Ticket')
+                    ->icon('heroicon-m-eye')
+                    ->color('info')
+                    ->iconButton(),
+                Tables\Actions\EditAction::make()
+                    ->label('Editar')
+                    ->tooltip('Editar Ticket')
+                    ->icon('heroicon-m-pencil')
+                    ->color('warning')
+                    ->iconButton(),
+                Tables\Actions\DeleteAction::make()
+                    ->label('Eliminar')
+                    ->tooltip('Eliminar Ticket')
+                    ->icon('heroicon-m-trash')
+                    ->color('danger')
+                    ->iconButton(),
+            ])->actionsColumnLabel('Acciones')
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),

@@ -1,3 +1,68 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Estilos dedicados para la Parrilla de Rifas */
+/* contenedos de números, máximo 10 filas, crear borde como card y scroll interno */
+.raffle-grid-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-height: 400px !important; /* Ajusta según tus necesidades */
+    padding: 15px;
+    border: 1px solid #e5e7eb; /* Gris claro */
+    border-radius: 12px;
+    background-color: #f9fafb; /* Blanco humo */
+    overflow-y: auto;
+}
+
+.raffle-number-box {
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border-radius: 12px;
+    transition: all 0.2s ease-in-out;
+    user-select: none;
+    cursor: pointer;
+}
+
+/* Colores basados en la referencia (Imágenes 3 y 4) */
+.number-available {
+    background-color: #14532d; /* Verde Esmeralda Oscuro */
+    border: 1px solid #16a34a;
+    color: #ffffff;
+}
+.number-available:hover {
+    background-color: #16a34a;
+    transform: scale(1.05);
+}
+
+.number-selected {
+    background-color: #eab308 !important; /* Amarillo de selección activa */
+    border: 1px solid #facc15 !important;
+    color: #000000 !important;
+    transform: scale(1.05);
+    box-shadow: 0 0 12px rgba(234, 179, 8, 0.4);
+}
+
+.number-pending {
+    background-color: #4b5563; /* Gris intermedio */
+    border: 1px solid #6b7280;
+    color: #d1d5db;
+    opacity: 0.7;
+    pointer-events: none; /* Evita que otro cliente lo cliquee */
+}
+
+.number-sold {
+    background-color: #7f1d1d; /* Rojo opaco */
+    border: 1px solid #b91c1c;
+    color: #fca5a5;
+    text-decoration: line-through;
+    opacity: 0.6;
+    pointer-events: none;
+}

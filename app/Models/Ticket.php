@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 
 class Ticket extends Model
 {
@@ -21,6 +22,14 @@ class Ticket extends Model
     protected $casts = [
         'ticket_numbers' => 'array',
     ];
+
+    // Contar tikets vendidos por rifa desglosando el array de ticket_numbers
+    public static function countTicketsByRaffle()
+    {
+        return self::select('raffle_id', DB::raw('SUM(JSON_LENGTH(ticket_numbers)) as total_tickets'))
+            ->groupBy('raffle_id')
+            ->get();
+    }
 
     public function raffle()
     {
