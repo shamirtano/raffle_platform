@@ -16,8 +16,9 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 class UserResource extends Resource
 {
     protected static ?string $model = User::class;
-    protected static ?string $navigationIcon = 'heroicon-m-users';
-    protected static ?string $navigationGroup = 'Gestión de Sistema';
+    protected static ?string $navigationIcon = 'heroicon-s-users';
+    protected static ?string $navigationGroup = 'Seguridad';
+    protected static ?int $navigationSort = 1;
     protected static ?string $modelLabel = 'Usuario';
     protected static ?string $pluralModelLabel = 'Usuarios';
 
@@ -69,8 +70,8 @@ class UserResource extends Resource
                 Tables\Columns\IconColumn::make('status')
                     ->boolean()
                     ->label('Activo')
-                    ->trueIcon('heroicon-m-check-circle')
-                    ->falseIcon('heroicon-m-x-circle'),
+                    ->trueIcon('heroicon-s-check-circle')
+                    ->falseIcon('heroicon-s-x-circle'),
                 Tables\Columns\TagsColumn::make('roles.display_name')->label('Roles'),
             ])
             ->filters([
@@ -79,15 +80,28 @@ class UserResource extends Resource
                     ->relationship('roles', 'display_name'),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),                
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->tooltip('Ver Detalles del Usuario')
+                    ->icon('heroicon-s-eye')
+                    ->iconButton()
+                    ->color('info'),
+                Tables\Actions\EditAction::make()
+                    ->tooltip('Editar Usuario')
+                    ->icon('heroicon-s-pencil')
+                    ->iconButton()
+                    ->color('warning'),
+                Tables\Actions\DeleteAction::make()
+                    ->tooltip('Eliminar Usuario')
+                    ->icon('heroicon-s-trash')
+                    ->iconButton()
+                    ->color('danger'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->actionsColumnLabel('Acciones');
     }
 
     public static function getRelations(): array

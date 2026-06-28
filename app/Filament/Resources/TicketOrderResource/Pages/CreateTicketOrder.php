@@ -19,10 +19,10 @@ class CreateTicketOrder extends CreateRecord
         return $this->getResource()::getUrl('index');
     }
 
-     protected function getHeaderActions(): array
+    protected function getHeaderActions(): array
     {
         return [
-            Actions\CancelAction::make(),
+            //
         ];
     }
 
@@ -51,28 +51,28 @@ class CreateTicketOrder extends CreateRecord
             $urlResultados = "https://tudominio.com/resultados";
 
             $mensaje = <<<WHATSAPP
-                🎉 *¡Felicidades {$record->customer_name}!* 🎉
+🎉 *¡Felicidades {$record->customer_name}!* 🎉
 
-                🍀 ¡Bienvenido/a a *El Palomo Negro*! 🍀
+🍀 ¡Bienvenido(a) a *El Palomo Negro*! 🍀
 
-                Estás participando en la rifa:
+Estás participando en la rifa:
 
-                🔥 *{$record->raffle->title}* 🔥
+🔥 *{$record->raffle->title}* 🔥
 
-                🎟️ *Tus números de suerte:*
-                {$numerosList}
+🎟️ *Tus números de suerte:*
+{$numerosList}
 
-                Estado del pago: *PAGADO*
+Estado del pago: *{$record->payment_status}*
 
-                Puedes realizar tu pagos mediante Nequi, Bancolombia o en Efectivo en nuestras oficinas.
+Puedes realizar tu pagos mediante Nequi, Bancolombia o en Efectivo en nuestras oficinas.
 
-                📲 *Revisa los resultados aquí:*
-                👉 {$urlResultados}
+📲 *Revisa los resultados aquí:*
+👉 {$urlResultados}
 
-                ✨ ¡Que la suerte te acompañe y cruces los dedos! ✨
+✨ ¡Que la suerte te acompañe y cruces los dedos! ✨
 
-                ¿Tienes alguna duda? Escríbenos 😊
-                WHATSAPP;
+¿Tienes alguna duda? Escríbenos 😊
+WHATSAPP;
 
             $textEncoded = rawurlencode($mensaje);
             $whatsappUrl = "https://api.whatsapp.com/send?phone={$numero}&text={$textEncoded}";
@@ -86,7 +86,7 @@ class CreateTicketOrder extends CreateRecord
                     // Usamos Action::make() directamente gracias al nuevo namespace importado
                     Action::make('send_whatsapp')
                         ->label('Sí, Enviar WhatsApp')
-                        ->icon('heroicon-m-chat-bubble-left-right')
+                        ->icon('heroicon-s-chat-bubble-left-right')
                         ->color('success')
                         ->url($whatsappUrl)
                         ->openUrlInNewTab()

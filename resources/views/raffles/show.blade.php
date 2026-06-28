@@ -47,13 +47,64 @@
         </div>
     </div>
 
-    <div class="max-w-7xl mx-auto mt-16 pt-8 border-t border-stone-900">
+    <div class="max-w-7xl mx-auto mt-12 bg-stone-900/60 border border-stone-800/60 rounded-3xl p-6 space-y-8">
+        <div>
+            <h3 class="text-xl font-bold tracking-tight text-white mb-1">Configura tu forma de juego</h3>
+            <p class="text-stone-500 text-sm">Selecciona tu paquete de boletas antes de proceder a elegir tus números.</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="space-y-3">
+                <label class="block text-xs font-bold uppercase tracking-wider text-stone-400">1. Selecciona tu combo obligatorio</label>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    @foreach($packageMultiples as $quantity)
+                        <button type="button" onclick="selectCombo({{ $quantity }})" id="btn-combo-{{ $quantity }}"
+                                class="btn-combo border border-stone-800 bg-stone-950 rounded-xl p-3 text-center transition-all hover:border-amber-500">
+                            <span class="text-[10px] font-bold uppercase tracking-wider block text-stone-500">Combo</span>
+                            <span class="text-2xl font-black text-white block my-0.5">{{ $quantity }}</span>
+                            <span class="text-[11px] text-stone-400 block">{{ $quantity == 1 ? 'Número' : 'Números' }}</span>
+                        </button>
+                    @endforeach
+                </div>
+            </div>
+
+            <div class="space-y-3">
+                <label class="block text-xs font-bold uppercase tracking-wider text-stone-400">2. ¿Cómo vas a elegir tus números?</label>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button type="button" onclick="setPlayMode('manual')" id="btn-mode-manual" disabled
+                            class="btn-mode opacity-40 border border-stone-800 bg-stone-950 rounded-xl p-3 flex items-center gap-3 text-left transition-all">
+                        <div class="text-amber-500 text-xl"><i class="bi bi-hand-index-thumb"></i></div>
+                        <div>
+                            <p class="font-bold text-sm text-white">Manual</p>
+                            <p class="text-[11px] text-stone-500">Elegir en el tablero</p>
+                        </div>
+                    </button>
+                    <button type="button" onclick="setPlayMode('random')" id="btn-mode-random" disabled
+                            class="btn-mode opacity-40 border border-stone-800 bg-stone-950 rounded-xl p-3 flex items-center gap-3 text-left transition-all">
+                        <div class="text-amber-500 text-xl"><i class="bi bi-lightning-charge"></i></div>
+                        <div>
+                            <p class="font-bold text-sm text-white">Aleatorio</p>
+                            <p class="text-[11px] text-stone-500">Generación rápida</p>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto mt-12 pt-8 border-t border-stone-900 transition-all opacity-30 pointer-events-none" id="grid-section">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
             <div>
-                <h2 class="text-2xl font-bold tracking-tight">Selecciona tus números</h2>
-                <p class="text-stone-500 text-sm mt-1">Haz clic en uno o varios números disponibles para iniciar tu pedido.</p>
+                <h2 class="text-2xl font-bold tracking-tight">Selecciona tus números en el tablero</h2>
+                <p class="text-stone-500 text-sm mt-1" id="grid-helper-text">Por favor elige tu combo primero.</p>
             </div>
-            <div class="w-full sm:w-72">
+            
+            <button type="button" id="btn-trigger-random" onclick="generateRandomNumbers()"
+                    class="hidden bg-amber-500 hover:bg-amber-600 text-stone-950 font-bold px-5 py-2.5 rounded-xl text-sm transition-all items-center gap-2">
+                <i class="bi bi-arrow-clockwise"></i> Generar Números Aleatorios
+            </button>
+
+            <div class="w-full sm:w-72" id="search-container">
                 <input type="text" id="search-number" 
                     class="w-full bg-stone-900 border border-stone-800 rounded-xl px-4 py-3 text-white placeholder:text-stone-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
                     placeholder="Buscar tu número de la suerte...">
@@ -125,11 +176,112 @@
 @push('scripts')
 <script>
     let selectedNumbers = [];
+    let requiredCount = 0;
+    let playMode = '';
     const ticketPrice = {{ $raffle->ticket_price }};
     let timerInterval = null;
 
+    // Seleccionar Combo o Paquete
+    function selectCombo(quantity) {
+        requiredCount = quantity;
+        selectedNumbers = [];
+        playMode = '';
+        
+        document.getElementById('ticket_numbers_input').value = '';
+        document.getElementById('display-total').innerText = '$0';
+        
+        // Limpiar clases de botones combo
+        document.querySelectorAll('.btn-combo').forEach(btn => btn.classList.remove('border-amber-500', 'bg-amber-500/10'));
+        document.getElementById(`btn-combo-${quantity}`).classList.add('border-amber-500', 'bg-amber-500/10');
+        
+        // Activar botones de modo
+        document.querySelectorAll('.btn-mode').forEach(btn => {
+            btn.removeAttribute('disabled');
+            btn.classList.remove('opacity-40', 'border-amber-500', 'bg-amber-500/10');
+        });
+
+        // Ocultar grilla por seguridad hasta elegir el modo
+        document.getElementById('grid-section').classList.add('opacity-30', 'pointer-events-none');
+        clearBoardSelection();
+    }
+
+    // Configurar Modo de Juego (Manual o Aleatorio)
+    function setPlayMode(mode) {
+        playMode = mode;
+        selectedNumbers = [];
+        document.getElementById('ticket_numbers_input').value = '';
+        document.getElementById('display-total').innerText = '$0';
+        clearBoardSelection();
+
+        document.querySelectorAll('.btn-mode').forEach(btn => btn.classList.remove('border-amber-500', 'bg-amber-500/10'));
+        document.getElementById(`btn-mode-${mode}`).classList.add('border-amber-500', 'bg-amber-500/10');
+
+        const gridSection = document.getElementById('grid-section');
+        gridSection.classList.remove('opacity-30', 'pointer-events-none');
+
+        const helperText = document.getElementById('grid-helper-text');
+        const searchContainer = document.getElementById('search-container');
+        const randomBtn = document.getElementById('btn-trigger-random');
+
+        if (mode === 'manual') {
+            helperText.innerText = `Haz clic hasta elegir exactamente ${requiredCount} números libres en el tablero.`;
+            searchContainer.classList.remove('hidden');
+            randomBtn.classList.add('hidden');
+        } else {
+            helperText.innerText = `Presiona el botón para autogenerar tus ${requiredCount} números disponibles de forma aleatoria.`;
+            searchContainer.classList.add('hidden');
+            randomBtn.classList.remove('hidden');
+            generateRandomNumbers(); // Autogenerar la primera tanda
+        }
+    }
+
+    // Limpia la grilla visualmente
+    function clearBoardSelection() {
+        document.querySelectorAll('.number-item').forEach(item => item.classList.remove('number-selected'));
+    }
+
+    // FUNCIÓN MODIFICADA: Generar Números Aleatorios y hacer Scroll al Formulario
+    function generateRandomNumbers() {
+        clearBoardSelection();
+        selectedNumbers = [];
+
+        // Extraemos todos los cuadros que tengan la clase nativa de disponibles
+        let availableBoxes = Array.from(document.querySelectorAll('.number-available'));
+        
+        if (availableBoxes.length < requiredCount) {
+            Swal.fire('Atención', 'No hay suficientes números libres para este combo en la rifa.', 'warning');
+            return;
+        }
+
+        // Mezclamos el array aleatoriamente
+        availableBoxes.sort(() => 0.5 - Math.random());
+        let selectedBoxes = availableBoxes.slice(0, requiredCount);
+
+        selectedBoxes.forEach(box => {
+            const num = box.dataset.number;
+            selectedNumbers.push(num);
+            box.classList.add('number-selected');
+        });
+
+        updateFormOutputs();
+
+        // SCROLL ANIMADO AL FORMULARIO Y ENFOQUE AL INPUT
+        const inputNombre = document.querySelector('input[name="customer_name"]');
+        if (inputNombre) {
+            inputNombre.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => {
+                inputNombre.focus();
+            }, 600); // Espera a que termine la animación del scroll para hacer el focus
+        }
+    }
+
     function toggleNumber(el) {
-        if (el.classList.contains('number-sold') || el.classList.contains('number-pending')) return;
+        if (el.classList.contains('number-sold') || el.classList.contains('number-pending') || playMode === 'random') return;
+
+        if (requiredCount === 0) {
+            Swal.fire('Paso Requerido', 'Por favor selecciona un combo obligatorio en la parte superior.', 'info');
+            return;
+        }
 
         const number = el.dataset.number;
 
@@ -137,10 +289,19 @@
             selectedNumbers = selectedNumbers.filter(n => n !== number);
             el.classList.remove('number-selected');
         } else {
+            if (selectedNumbers.length >= requiredCount) {
+                Swal.fire('Combo Completo', `Tu paquete seleccionado es de ${requiredCount} boletas. Desmarca un número si deseas cambiarlo.`, 'warning');
+                return;
+            }
             selectedNumbers.push(number);
             el.classList.add('number-selected');
         }
 
+        updateFormOutputs();
+    }
+
+    // Sincroniza los totales y activa o detiene el temporizador original
+    function updateFormOutputs() {
         document.getElementById('ticket_numbers_input').value = selectedNumbers.join(', ');
         const total = selectedNumbers.length * ticketPrice;
         document.getElementById('display-total').innerText = '$' + total.toLocaleString('es-CO');
@@ -153,6 +314,14 @@
             timerBadge.classList.add('hidden');
             clearInterval(timerInterval);
             timerInterval = null;
+        }
+
+        // Actualizar texto dinámico con los faltantes si está en modo manual
+        if (playMode === 'manual') {
+            const remaining = requiredCount - selectedNumbers.length;
+            document.getElementById('grid-helper-text').innerText = remaining > 0 
+                ? `Te faltan seleccionar ${remaining} números para completar tu paquete.` 
+                : `¡Paquete completado perfectamente! Procede a completar el formulario.`;
         }
     }
 
@@ -181,22 +350,20 @@
         }, 1000);
     }
 
-    // INTERCEPCIÓN DEL FORMULARIO CORREGIDA CON HEADERS DE SEGURIDAD LARAVEL
+    // INTERCEPCIÓN DEL FORMULARIO CON VALIDACIÓN ESTRICTA DEL COMBO COMPLETO
     document.getElementById('buy-form').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        // Validación rápida en el cliente antes de disparar el servidor
-        if (selectedNumbers.length === 0) {
-            Swal.fire({
-                title: 'Atención',
-                text: 'Por favor, selecciona al menos un número de la grilla antes de continuar.',
-                icon: 'warning',
-                confirmButtonColor: '#eab308'
-            });
+        if (requiredCount === 0) {
+            Swal.fire('Atención', 'Por favor selecciona un combo obligatorio primero.', 'warning');
             return;
         }
 
-        // Bloqueo estético de espera
+        if (selectedNumbers.length !== requiredCount) {
+            Swal.fire('Paquete Incompleto', `Debes elegir exactamente los ${requiredCount} números correspondientes a tu combo seleccionado. Llevas: ${selectedNumbers.length}.`, 'warning');
+            return;
+        }
+
         Swal.fire({
             title: 'Procesando Reserva',
             text: 'Guardando tus números en el sistema...',
@@ -208,8 +375,6 @@
 
         try {
             const formData = new FormData(this);
-            
-            // Extraer el token CSRF generado por el Blade directamente del input oculto
             const csrfToken = formData.get('_token');
 
             const response = await fetch(this.action, {
@@ -217,8 +382,8 @@
                 body: formData,
                 headers: {
                     'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': csrfToken, // <-- CRUCIAL: Autentica la petición asíncrona
-                    'Accept': 'application/json' // <-- CRUCIAL: Fuerza a Laravel a responder siempre en JSON si falla la validación
+                    'X-CSRF-TOKEN': csrfToken,
+                    'Accept': 'application/json'
                 }
             });
 
@@ -232,10 +397,9 @@
                     confirmButtonColor: '#10b981',
                     confirmButtonText: 'Entendido'
                 }).then(() => {
-                    window.location.reload(); // Refresca para pintar la grilla en gris
+                    window.location.reload();
                 });
             } else {
-                // Captura el mensaje de error personalizado enviado desde el controlador (ej: número duplicado)
                 Swal.fire({
                     title: 'No se pudo reservar',
                     text: result.message || 'Uno de los números seleccionados ya fue tomado por otro usuario.',
@@ -254,7 +418,7 @@
         }
     });
 
-    // Buscador interactivo
+    // Buscador interactivo original
     document.getElementById('search-number').addEventListener('input', function() {
         const term = this.value.trim();
         document.querySelectorAll('.number-item').forEach(item => {

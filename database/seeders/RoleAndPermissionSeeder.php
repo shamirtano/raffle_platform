@@ -40,8 +40,11 @@ class RoleAndPermissionSeeder extends Seeder
         Permission::create(['name' => 'manage_settings', 'display_name' => 'Gestionar Configuración', 'description' => 'Permite gestionar la configuración del sistema']);
 
         // Crear roles y asignar permisos
+        $superadmin = Role::create(['name' => 'superadmin', 'display_name' => 'Super Administrador', 'description' => 'Usuario con acceso completo a todas las funcionalidades']);
+        $superadmin->givePermissionTo(Permission::all());
+
         $admin = Role::create(['name' => 'admin', 'display_name' => 'Administrador', 'description' => 'Usuario con acceso completo a todas las funcionalidades']);
-        $admin->givePermissionTo(Permission::all());
+        $admin->givePermissionTo(Permission::all()->except(['manage_settings', 'manage_permissions', 'manage_roles']));
 
         $partner = Role::create(['name' => 'partner', 'display_name' => 'Socio', 'description' => 'Usuario con acceso limitado a ciertas funcionalidades']);
         $partner->givePermissionTo(['manage_reservations', 'sell_tickets', 'view_reports', 'view_dashboard', 'export_data']);

@@ -22,7 +22,7 @@ class FilamentAdminOnly
 
         // 2. Luego verificamos si tiene el rol de admin
         if (!auth()->user()->hasRole('admin')) {
-            abort(403, 'No tienes acceso a esta área.');
+            abort(403, 'No tienes acceso autorizado para esta área.');
         }
 
         return $next($request);

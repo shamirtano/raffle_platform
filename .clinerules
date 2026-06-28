@@ -1,0 +1,21 @@
+# Reglas de Desarrollo para "El Palomo Negro" (Rifas y Boletas)
+
+## Perfil del Proyecto y Tech Stack
+- **Backend Framework:** Laravel 11+ (PHP 8.2+)
+- **Admin Panel & Form/Table Builder:** Filament v3
+- **Base de Datos:** MySQL / MariaDB (Tipos de datos estrictos para monedas: DECIMAL(15,2))
+- **Frontend Interactivo Integrado:** Alpine.js (incluido en Filament)
+- **Localización Principal:** Colombia (Formato de moneda en pesos $, números telefónicos con indicativo +57)
+
+## Principios de Diseño de Código
+- **Estilo de Escritura:** Frases cortas, explicaciones breves, respuestas directas y pragmáticas.
+- **Enfoque de Soluciones:** Priorizar siempre características nativas de Filament v3 y Alpine.js antes de escribir scripts JS personalizados complejos (RawJs) o llamadas HTTP repetitivas al servidor.
+
+## Reglas Críticas para Formularios y Campos Numéricos (Evitar Bugs de Ceros)
+- **Campos de Moneda (Premios/Precios):** Para columnas de base de datos `decimal(15,2)`, NO mezclar funciones de filtrado de strings rudimentarias en JavaScript con `stripCharacters()`. Esto provoca que los ceros decimales se multipliquen en la fase de hidratación/guardado.
+- **Solución Estándar para Dinero sin Centavos (Recomendada en Colombia):**
+  ```php
+  Forms\Components\TextInput::make('field_name')
+      ->numeric()
+      ->extraAlpineAttributes(['x-mask.number' => ''])
+      ->minValue(0)

@@ -5,6 +5,8 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\TicketOrderResource\Pages;
 use App\Models\Ticket;
 use App\Models\TicketOrder;
+use App\Models\Raffle;
+use App\Models\RaffleConfiguration;
 use Filament\Forms;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Form;
@@ -20,21 +22,23 @@ class TicketOrderResource extends Resource
 {
     protected static ?string $model = TicketOrder::class;
 
-    protected static ?string $navigationIcon = 'heroicon-m-clipboard-document-list';
+    protected static ?string $navigationIcon = 'heroicon-s-clipboard-document-list';
+
+    protected static ?string $navigationGroup = 'Rifas y Sorteos';
     
     protected static ?string $navigationLabel = 'Pedidos Web';
+
+    protected static ?int $navigationSort = 2;
     
     protected static ?string $modelLabel = 'Pedido';
     
     protected static ?string $pluralModelLabel = 'Pedidos';
 
-    // BADGE DINÁMICO EN EL MENÚ DE NAVEGACIÓN: Muestra el conteo de pedidos pendientes
     public static function getNavigationBadge(): ?string
     {
         return static::getModel()::where('status', 'pending')->count() ?: null;
     }
 
-    // COLOR DEL BADGE: Lo pone en un tono llamativo (ej: ámbar/amarillo)
     public static function getNavigationBadgeColor(): ?string
     {        
         return 'primary';
@@ -49,7 +53,7 @@ class TicketOrderResource extends Resource
                     Placeholder::make('expiration_timer')
                         ->label('')
                         ->visible(fn ($record) => $record && $record->status === 'pending')
-                        ->content(function ($record) {                            
+                        ->content(function ($record) {                                            
                             $createdAt = $record->created_at->timestamp * 1000;
                             $durationMinutes = 10; 
                             $expiresAt = $createdAt + ($durationMinutes * 60 * 1000);
@@ -68,6 +72,7 @@ class TicketOrderResource extends Resource
                                                 if (diff <= 0) {
                                                     this.timeLeft = '00:00';
                                                     this.isExpired = true;
+                                                    this.timeLeft = '00:00';
                                                     clearInterval(timerInterval);
                                                     return;
                                                 }
@@ -105,12 +110,15 @@ class TicketOrderResource extends Resource
                             ");
                         })
                         ->columnSpanFull(),
+
                     Forms\Components\Select::make('raffle_id')
                         ->relationship('raffle', 'title')
                         ->label('Rifa')
                         ->required()
                         ->disabledOn('edit')
-                        ->live(), // Hace que el formulario reaccione al cambiar de rifa
+                        ->live()
+                        ->afterStateUpdated(fn ($set) => $set('ticket_numbers', []))
+                        ->columnSpanFull(), 
 
                     Forms\Components\TextInput::make('customer_name')
                         ->label('Nombre del Cliente')
@@ -125,13 +133,50 @@ class TicketOrderResource extends Resource
 
                     Forms\Components\TagsInput::make('ticket_numbers')
                         ->label('Números Reservados')
+                        ->helperText('Ingresa los números separados por comas o presiona Enter después de cada número. Ejemplo: 02, 45, 78. Luego presiona el botón buscar para validar que los números estén disponibles.')
                         ->placeholder('Ej: 02, 45 y presiona Enter')
                         ->required()
                         
-                        // BOTÓN DE VALIDACIÓN INTERNA
+                        // VALIDACIÓN EN TIEMPO DE GUARDADO (Formulario Filament)
+                        ->rules([
+                            function (Forms\Get $get) {
+                                return function (string $attribute, $value, \Closure $fail) use ($get) {
+                                    $raffleId = $get('raffle_id');
+                                    if (!$raffleId) return;
+
+                                    $raffle = Raffle::find($raffleId);
+                                    if (!$raffle) return;
+
+                                    // 1. Validar Combos / Múltiplos Obligatorios
+                                    $numbersCount = is_array($value) ? count($value) : 0;
+                                    if (!$raffle->validateOrderPackages($numbersCount)) {
+                                        $combosPermitidos = implode(', ', RaffleConfiguration::getVal('package_multiples', []));
+                                        $fail("Cantidad no permitida. En El Palomo Negro se vende exclusivamente por paquetes de [{$combosPermitidos}] números. Ingresaste: {$numbersCount}.");
+                                        return;
+                                    }
+
+                                    // 2. Validar Longitud de Cifras (Inyectando ceros o bloqueando)
+                                    // Se asume el valor por defecto en caso de no encontrarse en la parametrización
+                                    $requiredDigits = 3; 
+                                    if ($raffle->game_type === 'traditional') {
+                                        // Tradicional usa la lógica del seeder o valor manual según tu modelo
+                                        $requiredDigits = $raffle->digits_count ?? 3;
+                                    }
+
+                                    foreach ($value as $number) {
+                                        $cleanNumber = preg_replace('/[^0-9]/', '', $number);
+                                        if (strlen($cleanNumber) !== $requiredDigits) {
+                                            $fail("El número '{$number}' no es válido. La modalidad de esta rifa exige que todos los boletos tengan exactamente {$requiredDigits} cifras.");
+                                            return;
+                                        }
+                                    }
+                                };
+                            }
+                        ])
+                        
                         ->suffixAction(
                             Forms\Components\Actions\Action::make('validateNumbers')
-                                ->icon('heroicon-m-magnifying-glass')
+                                ->icon('heroicon-s-magnifying-glass')
                                 ->color('info')
                                 ->tooltip('Verificar disponibilidad de estos números')
                                 ->action(function (Forms\Get $get, $state) {
@@ -163,18 +208,15 @@ class TicketOrderResource extends Resource
                                             return $decoded['numbers'] ?? $decoded ?? [];
                                         })->toArray();
 
-                                    // 4. Consultar números ocupados en otras órdenes pendientes
                                     $takenOrders = DB::table('ticket_orders')
                                         ->where('raffle_id', $raffleId)
                                         ->where('status', 'pending')
-                                        // Opcional: Si estamos editando, ignorar los números de este mismo registro
                                         ->when($get('id'), fn($q) => $q->where('id', '!=', $get('id')))
                                         ->get()
                                         ->flatMap(fn($o) => json_decode($o->ticket_numbers, true) ?? [])
                                         ->toArray();
 
                                     $allTakenNumbers = array_merge($takenTickets, $takenOrders);
-
                                     $occupied = array_intersect($state, $allTakenNumbers);
 
                                     if (empty($occupied)) {
@@ -192,7 +234,8 @@ class TicketOrderResource extends Resource
                                             ->persistent()
                                             ->send();
                                     }
-                                })
+                                })                                
+                                ->disabled(fn (Forms\Get $get) => $get('status') === 'processed')
                         ),
 
                     Forms\Components\Select::make('status')
@@ -201,6 +244,7 @@ class TicketOrderResource extends Resource
                             'pending' => 'Pendiente',
                             'processed' => 'Procesado',
                         ])
+                        ->helperText('Cambia el estado del pedido a "Procesado" una vez que se haya confirmado el pago y se haya generado el ticket.')
                         ->required()
                         ->default('pending'),
                 ])->columns(2)
@@ -223,7 +267,6 @@ class TicketOrderResource extends Resource
 
                 Tables\Columns\TextColumn::make('customer_phone')
                     ->label('WhatsApp')
-                    ->searchable()
                     ->searchable(),
 
                 Tables\Columns\TextColumn::make('raffle.title')
@@ -240,10 +283,7 @@ class TicketOrderResource extends Resource
                             return implode(', ', $state);
                         }
                         $decoded = json_decode($state, true);
-                        if (is_array($decoded)) {
-                            return implode(', ', $decoded);
-                        }
-                        return $state ?? '';
+                        return is_array($decoded) ? implode(', ', $decoded) : ($state ?? '');
                     }),
 
                 Tables\Columns\TextColumn::make('status')
@@ -269,11 +309,10 @@ class TicketOrderResource extends Resource
                     ]),
             ])
             ->actions([
-                // Si el pedido ya aparece procesado, mostrar el botón para enviar por whatsapp
                 Tables\Actions\Action::make('send_whatsapp')
                     ->label('Notificar por WhatsApp')
-                    ->tooltip('Enviar mensaje de confirmación al cliente por WhatsApp')
-                    ->icon('heroicon-m-chat-bubble-left-right')
+                    ->tooltip('Enviar confirmación al WhatsApp del cliente')
+                    ->icon('heroicon-s-chat-bubble-left-right')
                     ->color('success')                    
                     ->url(function (TicketOrder $record) {
                         $numero = preg_replace('/[^0-9]/', '', $record->customer_phone);
@@ -281,39 +320,39 @@ class TicketOrderResource extends Resource
                             $numero = '57' . $numero;
                         }
 
-                        $numerosList = implode(', ', $record->ticket_numbers);
+                        $numerosList = is_array($record->ticket_numbers) 
+                            ? implode(', ', $record->ticket_numbers) 
+                            : implode(', ', json_decode($record->ticket_numbers, true) ?? []);
+                            
                         $urlResultados = "https://tudominio.com/resultados"; 
-                        
-                        // 🌟 CORREGIDO: Definición de la variable faltante
                         $estadoPago = 'PENDIENTE';
 
-                        // 🌟 CORREGIDO: Texto alineado a la izquierda para evitar espacios raros en WhatsApp
-                        $mensaje = <<<WHATSAPP
-                            🎉 *¡Felicidades {$record->customer_name}!* 🎉
+                        // Bloque para WhatsApp Web limpio
+$mensaje = <<<WHATSAPP
+🎉 *¡Felicidades {$record->customer_name}!* 🎉
 
-                            🍀 ¡Bienvenido/a a *El Palomo Negro*! 🍀         
+🍀 ¡Bienvenido(a) a *El Palomo Negro*! 🍀         
                                     
-                            Estás participando en la rifa:
+Estás participando en la rifa:
 
-                            🔥 *{$record->raffle->title}* 🔥
+🔥 *{$record->raffle->title}* 🔥
 
-                            🎟️ *Tus números de suerte:*
-                            {$numerosList}
+🎟️ *Tus números de suerte:*
+{$numerosList}
 
-                            Estado del pago: *{$estadoPago}*
+Estado del pago: *{$estadoPago}*
 
-                            Puedes realizar tu pagos mediante Nequi, Bancolombia o en Efectivo en nuestras oficinas.
+Puedes realizar tu pagos mediante Nequi, Bancolombia o en Efectivo en nuestras oficinas.
 
-                            📲 *Revisa los resultados aquí:*
-                            👉 {$urlResultados}
+📲 *Revisa los resultados aquí:*
+👉 {$urlResultados}
 
-                            ✨ ¡Que la suerte te acompañe y cruces los dedos! ✨
+✨ ¡Que la suerte te acompañe y cruces los dedos! ✨
 
-                            ¿Tienes alguna duda? Escríbenos 😊
-                            WHATSAPP;
+¿Tienes alguna duda? Escríbenos 😊
+WHATSAPP;
 
                         $textEncoded = rawurlencode($mensaje);
-
                         return "https://api.whatsapp.com/send?phone={$numero}&text={$textEncoded}";
                     })
                     ->openUrlInNewTab()
@@ -322,32 +361,30 @@ class TicketOrderResource extends Resource
 
                 Tables\Actions\ViewAction::make()
                     ->label('Ver Detalles')
-                    ->tooltip('Ver toda la información del pedido')
-                    ->icon('heroicon-m-eye')
-                    ->color('primary')
-                    ->iconButton(),
-
+                    ->tooltip('Ver detalles del pedido')
+                    ->iconButton()
+                    ->color('info'),
                 Tables\Actions\EditAction::make()
                     ->label('Editar Pedido')
                     ->tooltip('Modificar información del pedido')
-                    ->icon('heroicon-m-pencil')
-                    ->color('secondary')
-                    ->iconButton(),
-
+                    ->icon('heroicon-s-pencil')
+                    ->color('warning')
+                    ->iconButton()                    
+                    ->disabled(fn (TicketOrder $record) => $record->status === 'processed')
+                    ->visible(fn (TicketOrder $record) => $record->status !== 'processed'),
                 Tables\Actions\DeleteAction::make()
-                    ->visible(fn () => auth()->user()->hasRole('admin')) // Restricción opcional para administradores
+                    ->visible(fn () => auth()->user() && auth()->user()->id === 1) // Restricción básica de seguridad
                     ->label('Eliminar Pedido')
-                    ->tooltip('Eliminar este pedido de forma permanente')
-                    ->icon('heroicon-m-trash')
-                    ->color('danger')
-                    ->iconButton(),
+                    ->iconButton()
+                    ->color('danger'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->visible(fn () => auth()->user()->hasRole('admin')),
+                        ->visible(fn () => auth()->user() && auth()->user()->id === 1),
                 ]),
-            ]);
+            ])
+            ->actionsColumnLabel('Acciones');
     }
 
     public static function getRelations(): array

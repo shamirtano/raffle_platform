@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\TicketResource\Pages;
 
 use App\Filament\Resources\TicketResource;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateTicket extends CreateRecord
@@ -15,13 +14,29 @@ class CreateTicket extends CreateRecord
         return $this->getResource()::getUrl('index');
     }
 
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['user_id'] = auth()->id();
+
+        if (isset($data['ticket_numbers']['numbers'])) {
+            $data['ticket_numbers'] = ['numbers' => array_values($data['ticket_numbers']['numbers'])];
+        } elseif (isset($data['ticket_numbers']) && is_array($data['ticket_numbers'])) {
+            $data['ticket_numbers'] = ['numbers' => array_values($data['ticket_numbers'])];
+        }
+
+        return $data;
+    }
+
     protected function afterCreate(): void
     {
         $record = $this->record;
+        $numbersArray = $record->ticket_numbers['numbers'] ?? $record->ticket_numbers ?? [];
+        $numerosList = implode(', ', $numbersArray);
 
-        // Mensaje para WhatsApp
         $numero = preg_replace('/[^0-9]/', '', $record->customer_phone);
-        $numerosList = implode(', ', $record->ticket_numbers ?? []);
+        if (strlen($numero) === 10 && str_starts_with($numero, '3')) {
+            $numero = '57' . $numero;
+        }
 
         $mensaje = "🎟️ *¡Boleta o Ticket Creado Exitosamente!*\n\n" .
                    "Hola *{$record->customer_name}*,\n\n" .
@@ -31,7 +46,6 @@ class CreateTicket extends CreateRecord
 
         $whatsappUrl = "https://api.whatsapp.com/send?phone={$numero}&text=" . rawurlencode($mensaje);
 
-        // SweetAlert con opción para enviar por WhatsApp
         $this->js(<<<JS
             Swal.fire({
                 title: '¡Boleta o Ticket creada correctamente!',

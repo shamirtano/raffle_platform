@@ -13,7 +13,19 @@ class AdminUserSeeder extends Seeder
      * Run the database seeds.
      */
     public function run(): void
-    {
+    {   
+        // Usuario Super Administrador del sistema - Desarrolladores y administradores de alto nivel
+        $super_user = User::create([
+            'first_name' => 'Super',
+            'last_name'  => 'Administrador',
+            'email'      => 'super@elpalomonegro.com',
+            'password'   => Hash::make('password'),
+            'status'     => 'active',
+        ]);
+
+        $super_user->assignRole('superadmin');
+
+        // Usuario Administrador o propietario del sistema
         $user = User::create([
             'first_name' => 'Admin',
             'last_name'  => 'Principal',
@@ -22,7 +34,6 @@ class AdminUserSeeder extends Seeder
             'status'     => 'active',
         ]);
 
-        // Asignar el rol de admin que creamos antes
         $user->assignRole('admin');
     }
 }

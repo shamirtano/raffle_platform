@@ -5,15 +5,17 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\RaffleResource\Pages;
 use App\Filament\Resources\RaffleResource\RelationManagers;
 use App\Models\Raffle;
+use App\Models\RaffleConfiguration;
 use Filament\Forms;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Grid;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
-use Filament\Tables;
 use Filament\Support\RawJs;
+use Filament\Tables;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -25,7 +27,9 @@ use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 class RaffleResource extends Resource
 {
     protected static ?string $model = Raffle::class;
-    protected static ?string $navigationIcon = 'heroicon-m-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-s-ticket';
+    protected static ?string $navigationGroup = 'Rifas y Sorteos';
+    protected static ?int $navigationSort = 1;
     protected static ?string $modelLabel = 'Rifa';
     protected static ?string $pluralModelLabel = 'Rifas';
 
@@ -42,144 +46,114 @@ class RaffleResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Detalles de la Rifa')
-                ->schema([
-                    Forms\Components\TextInput::make('title')
-                        ->label('Título')
-                        ->required()
-                        ->maxLength(255)
-                        ->live()
-                        ->afterStateUpdated(function (callable $set, $state, $get) {
-                            if (empty($get('slug'))) {
-                                $set('slug', \Str::slug($state));
-                            }
-                        }),
+                // SECCIÓN: Información General
+                Forms\Components\Section::make('📝 Información General del Sorteo')
+                    ->schema([
+                        Grid::make(2)->schema([
+                            Forms\Components\TextInput::make('title')
+                                ->label('Título')
+                                ->required()
+                                ->live(onBlur: true)
+                                ->afterStateUpdated(function (callable $set, $state, $get) {
+                                    if (empty($get('slug'))) {
+                                        $set('slug', \Str::slug($state));
+                                    }
+                                }),
 
-                    Forms\Components\TextInput::make('slug')
-                        ->label('Slug')
-                        ->maxLength(255)
-                        ->unique(ignoreRecord: true)
-                        ->helperText('Se genera automáticamente desde el título. Puedes editarlo manualmente si lo deseas.')
-                        ->disabledOn('edit')
-                        ->dehydrated(),
+                            Forms\Components\TextInput::make('slug')
+                                ->label('Slug')
+                                ->unique(ignoreRecord: true)
+                                ->disabledOn('edit')
+                                ->dehydrated(),
+                        ]),
 
-                    Forms\Components\Textarea::make('description')
-                        ->label('Descripción')
-                        ->rows(3)
-                        ->columnSpan(2),
-
-                    Forms\Components\FileUpload::make('image_path')
-                        ->label('Imagen de la Rifa')
-                        ->directory('raffle-images')
-                        ->getUploadedFileNameForStorageUsing(function (TemporaryUploadedFile $file) {
-                            $extension = $file->getClientOriginalExtension();
-                            // Nombre único basado en timestamp + número aleatorio
-                            return time() . rand(1000, 9999) . '.' . strtolower($extension);
-                        })
-                        ->image()
-                        ->imageEditor()
-                        ->helperText('Sube una imagen representativa. La imagen anterior se eliminará automáticamente al actualizar.')
-                        ->maxSize(1024)
-                        ->columnSpan(2),
-
-                    Forms\Components\TextInput::make('organizer')
-                        ->label('Organizador')
-                        ->maxLength(255),
-
-                    Forms\Components\TextInput::make('contact_info')
-                        ->label('Información de Contacto')
-                        ->maxLength(255),
-
-                    Forms\Components\TextInput::make('social_media_url')
-                        ->label('URL de Redes Sociales')
-                        ->maxLength(255),
-
-                    Forms\Components\Select::make('prize_type')
-                        ->label('Tipo de Premio')
-                        ->options([
-                            1 => '💵 Dinero',
-                            2 => '📦 Artículo',
-                        ])
-                        ->required()
-                        ->live(),
-
-                    // Premio Jackpot
-                    Forms\Components\TextInput::make('jackpot_prize')
-                        ->label('Premio en pesos')
-                        ->prefix('$')
-                        ->numeric()                       
+                        Forms\Components\Textarea::make('description')->label('Descripción')->rows(3)->columnSpanFull(),
                         
-                        ->formatStateUsing(function ($state) {
-                            if ($state === null || $state === '') return '';                            
-                            return (int) $state; 
-                        })
+                        Forms\Components\FileUpload::make('image_path')
+                            ->label('Imagen Publicitaria')
+                            ->directory('raffle_images')
+                            ->disk('public')
+                            ->image()
+                            ->columnSpanFull(),
+                    ]),
 
-                        ->mask(RawJs::make(<<<'JS'
-                            function (value) {
-                                if (!value) return '';
-                                return value.toString().replace(/[^0-9]/g, '')
-                                        .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                            }
-                        JS))
-                        ->stripCharacters(['.'])
-                        ->minValue(0)
-                        ->maxValue(9999999999)
-                        ->helperText('Ejemplo: 5.000.000')
-                        ->required(),
+                // NUEVA SECCIÓN: Datos de Organización y Contacto
+                Forms\Components\Section::make('🏢 Datos del Organizador')
+                    ->schema([
+                        Grid::make(3)->schema([
+                            Forms\Components\TextInput::make('organizer')
+                                ->label('Organizado por')
+                                ->maxLength(255),
 
-                    // Precio del ticket
-                    Forms\Components\TextInput::make('ticket_price')
-                        ->label('Precio del Ticket')
-                        ->prefix('$')
-                        ->numeric()                       
-                        
-                        ->formatStateUsing(function ($state) {
-                            if ($state === null || $state === '') return '';                            
-                            return (int) $state; 
-                        })
+                            Forms\Components\TextInput::make('contact_info')
+                                ->label('Teléfono / WhatsApp de Contacto')
+                                ->maxLength(255),
 
-                        ->mask(RawJs::make(<<<'JS'
-                            function (value) {
-                                if (!value) return '';
-                                return value.toString().replace(/[^0-9]/g, '')
-                                        .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-                            }
-                        JS))
-                        ->stripCharacters(['.'])
-                        ->minValue(0)
-                        ->maxValue(9999999999)
-                        ->helperText('Ejemplo: 1.000')
-                        ->required(),
+                            Forms\Components\TextInput::make('social_media_url')
+                                ->label('Enlace de Redes Sociales')
+                                ->url()
+                                ->maxLength(255),
+                        ]),
+                    ]),
 
-                    Forms\Components\TextInput::make('reference_lottery')
-                        ->label('Lotería de Referencia')
-                        ->maxLength(255)
-                        ->required(),
+                // SECCIÓN: Reglas de Juego y Parámetros Globales
+                Forms\Components\Section::make('🎰 Reglas de Juego')
+                    ->schema([
+                        Grid::make(3)->schema([
+                            Forms\Components\Select::make('game_type')
+                                ->label('Tipo de Juego')
+                                ->options(fn () => RaffleConfiguration::getVal('raffle_types', ['traditional' => 'Tradicional']))
+                                ->required(),
 
-                    Forms\Components\DatePicker::make('draw_date')
-                        ->label('Fecha de Sorteo')
-                        ->required(),
+                            // 🌟 Campo de Cifras Dinámico conectado a la Configuración Global
+                            Forms\Components\Select::make('digits_count')
+                                ->label('Cantidad de Cifras')
+                                ->options(function () {
+                                    $digits = RaffleConfiguration::getVal('digits_options', [3, 4]);
+                                    return array_combine($digits, array_map(fn($d) => "{$d} Cifras", $digits));
+                                })
+                                ->default(3)
+                                ->required(),
 
-                    Forms\Components\Select::make('digits_count')
-                        ->label('Cantidad de Cifras')
-                        ->options([
-                            2 => '2 Cifras',
-                            3 => '3 Cifras',
-                            4 => '4 Cifras'
-                        ])
-                        ->default(3)
-                        ->required(),
+                            Forms\Components\Select::make('reference_lottery')
+                                ->label('Lotería del Sorteo')
+                                ->options(fn () => RaffleConfiguration::getVal('allowed_lotteries', []))
+                                ->searchable()
+                                ->required(),
+                        ]),
+                    ]),
 
-                    Forms\Components\Select::make('status')
-                        ->label('Estado')
-                        ->options([                            
-                            'OPEN' => '🟢 Abierta',
-                            'CLOSED' => '🔴 Cerrada'
-                        ])
-                        ->default('OPEN')
-                        ->required(),
-                ])
-                ->columns(2),
+                // SECCIÓN: Costos, Premios y Logística
+                Forms\Components\Section::make('💰 Costos y Premios')
+                    ->schema([
+                        Grid::make(3)->schema([
+                            Forms\Components\Select::make('prize_type')
+                                ->label('Tipo de Premio')
+                                ->options([1 => '💵 Dinero', 2 => '📦 Artículo'])
+                                ->required(),
+
+                            Forms\Components\TextInput::make('jackpot_prize')
+                                ->label('Premio Mayor')
+                                ->prefix('$')
+                                ->numeric()
+                                ->required(),
+
+                            Forms\Components\TextInput::make('ticket_price')
+                                ->label('Precio del Ticket')
+                                ->prefix('$')
+                                ->numeric()
+                                ->required(),
+                        ]),
+
+                        Grid::make(2)->schema([
+                            Forms\Components\DatePicker::make('draw_date')->label('Fecha del Sorteo')->required(),
+                            Forms\Components\Select::make('status')
+                                ->label('Estado')
+                                ->options(['OPEN' => '🟢 Abierta', 'CLOSED' => '🔴 Cerrada'])
+                                ->default('OPEN')
+                                ->required(),
+                        ]),
+                    ]),
             ]);
     }
 
@@ -190,9 +164,23 @@ class RaffleResource extends Resource
                 Tables\Columns\TextColumn::make('title')->searchable()->sortable()->label('Título'),                
                 Tables\Columns\TextColumn::make('prize_type')->label('Tipo de Premio')                    
                     ->formatStateUsing(fn ($state) => $state == 1 ? '💵 Dinero' : '📦 Artículo'),
-                Tables\Columns\TextColumn::make('jackpot_prize')->prefix('$')->label('Premio en pesos'),
-                Tables\Columns\TextColumn::make('ticket_price')->prefix('$')->label('Precio'),
-                Tables\Columns\TextColumn::make('reference_lottery')->label('Lotería'),
+                Tables\Columns\TextColumn::make('jackpot_prize')
+                    ->prefix('$')
+                    ->label('Premio en pesos')
+                    ->formatStateUsing(function ($state) {
+                        if ($state === null || $state === '') return '';
+                        return number_format((int)$state, 0, ',', '.');
+                    }),
+                Tables\Columns\TextColumn::make('ticket_price')
+                    ->prefix('$')
+                    ->label('Precio')
+                    ->formatStateUsing(function ($state) {
+                        if ($state === null || $state === '') return '';
+                        return number_format((int)$state, 0, ',', '.');
+                    }),
+                Tables\Columns\TextColumn::make('reference_lottery')
+                    ->label('Lotería')
+                    ->formatStateUsing(fn ($state) => strtoupper($state)),
                 Tables\Columns\TextColumn::make('draw_date')->date()->label('Fecha de Sorteo'),
                 Tables\Columns\BadgeColumn::make('status')->label('Estado')                    
                     ->colors([
@@ -202,7 +190,8 @@ class RaffleResource extends Resource
                     ->formatStateUsing(fn ($state) => __($state)),
                 // Contar tickets vendidos por rifa usando el método estático del modelo Ticket countTicketsByRaffle()
                 Tables\Columns\TextColumn::make('tickets_sold')->label('Vendidos')
-                    ->getStateUsing(function (Raffle $record) {
+                    // Raffle::soldTickets() devuelve la cantidad de tickets vendidos
+                    ->getStateUsing(function (Raffle $record) {                        
                         $countData = \App\Models\Ticket::countTicketsByRaffle();
                         $raffleData = $countData->firstWhere('raffle_id', $record->id);
                         return $raffleData ? $raffleData->total_tickets : 0;
@@ -221,24 +210,30 @@ class RaffleResource extends Resource
                         'CLOSED' => '🔴 Cerrada',
                     ])
                     ->label('Estado'),
+                // Lotería de referencia
+                Tables\Filters\SelectFilter::make('reference_lottery')
+                    ->options(function () {
+                        return \App\Models\RaffleConfiguration::getVal('allowed_lotteries', []);
+                    })
+                    ->label('Lotería de Referencia'),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()
                     ->label('Ver detalles')
                     ->tooltip('Ver detalles de la rifa, incluyendo números vendidos y pendientes')
-                    ->icon('heroicon-m-eye')
+                    ->icon('heroicon-s-eye')
                     ->color('info')
                     ->iconButton(),
                 Tables\Actions\EditAction::make()
                     ->label('Editar')
                     ->tooltip('Editar los detalles de la rifa')
-                    ->icon('heroicon-m-pencil')
-                    ->color('primary')
+                    ->icon('heroicon-s-pencil')
+                    ->color('warning')
                     ->iconButton(),
                 Tables\Actions\DeleteAction::make()
                     ->label('Eliminar')
                     ->tooltip('Eliminar esta rifa de forma permanente')
-                    ->icon('heroicon-m-trash')
+                    ->icon('heroicon-s-trash')
                     ->color('danger')
                     ->iconButton(),
             ])
@@ -246,7 +241,8 @@ class RaffleResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->actionsColumnLabel('Acciones');
     }
 
     public static function getRelations(): array
@@ -275,7 +271,7 @@ class RaffleResource extends Resource
     {
         // Eliminar imagen anterior si se subió una nueva
         if (isset($data['image_path']) && $record->image_path) {
-            $oldPath = 'raffle-images/' . $record->image_path;
+            $oldPath = 'raffle_images/' . $record->image_path;
             Storage::disk('public')->delete($oldPath);
         }
 
@@ -285,16 +281,17 @@ class RaffleResource extends Resource
     }
 
     /**
-     * Metodo para mutar los datos del formulario antes de guardarlos en la base de datos, específicamente para asegurarnos de que solo se guarde el nombre del archivo de la imagen y no la ruta completa.
+     * Modifica los datos del formulario antes de crear el registro en la base de datos.
      * @param array $data
      * @return array
      */
-    protected function mutateFormDataBeforeSave(array $data): array
+    protected static function mutateFormDataBeforeCreate(array $data): array
     {
-        if (isset($data['image_path'])) {
-            // Extraer solo el nombre del archivo si viene con ruta
-            $data['image_path'] = basename($data['image_path']);
+        // Si el slug llegó vacío o nulo, lo forzamos a partir del título
+        if (empty($data['slug']) && !empty($data['title'])) {
+            $data['slug'] = \Str::slug($data['title']);
         }
+
         return $data;
     }
 

@@ -13,7 +13,11 @@ class ListTicketOrders extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->label('Crear Nueva Orden de Venta')
+                ->icon('heroicon-s-plus')
+                ->button()
+                ->color('primary'),
         ];
     }
 }

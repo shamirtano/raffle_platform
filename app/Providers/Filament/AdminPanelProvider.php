@@ -28,14 +28,24 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->navigationGroups([
+                'Escritorio',
+                'Reservas y Pedidos',
+                'Rifas y Sorteos',
+                'Finanzas y Contabilidad',
+                'Reportes y Estadísticas',
+                'Usuarios y Roles',                
+                'Configuración General',
+                'Gestión Página Web',
+            ])
             ->userMenuItems([                
                 /*Pages\Account\AccountPage::class => [
                     'label' => 'Mi Cuenta',
-                    'icon' => 'heroicon-m-user',
+                    'icon' => 'heroicon-s-user',
                 ],
                 Pages\Auth\Logout::class => [
                     'label' => 'Cerrar Sesión',
-                    'icon' => 'heroicon-m-arrow-right-on-rectangle',
+                    'icon' => 'heroicon-s-arrow-right-on-rectangle',
                 ],*/
             ])
             ->colors([

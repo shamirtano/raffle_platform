@@ -15,7 +15,7 @@ class ListTickets extends ListRecords
         return [
             Actions\CreateAction::make()
                 ->label('Crear Nuevo Ticket')
-                ->icon('heroicon-m-plus')
+                ->icon('heroicon-s-plus')
                 ->button()
                 ->color('primary'),
         ];

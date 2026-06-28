@@ -22,11 +22,10 @@ class Ticket extends Model
     protected $casts = [
         'ticket_numbers' => 'array',
     ];
-
-    // Contar tikets vendidos por rifa desglosando el array de ticket_numbers
+    
     public static function countTicketsByRaffle()
     {
-        return self::select('raffle_id', DB::raw('SUM(JSON_LENGTH(ticket_numbers)) as total_tickets'))
+        return self::select('raffle_id', DB::raw('SUM(JSON_LENGTH(ticket_numbers->"$.numbers")) as total_tickets'))
             ->groupBy('raffle_id')
             ->get();
     }
@@ -34,11 +33,6 @@ class Ticket extends Model
     public function raffle()
     {
         return $this->belongsTo(Raffle::class);
-    }
-
-    public function package(): BelongsTo
-    {
-        return $this->belongsTo(Package::class);
     }
 
     public function user()

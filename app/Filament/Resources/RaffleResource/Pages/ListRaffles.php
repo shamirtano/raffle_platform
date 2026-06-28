@@ -15,7 +15,7 @@ class ListRaffles extends ListRecords
         return [
             Actions\CreateAction::make()
                 ->label('Crear Nueva Rifa')
-                ->icon('heroicon-m-plus')
+                ->icon('heroicon-s-plus')
                 ->button()
                 ->color('primary'),
         ];

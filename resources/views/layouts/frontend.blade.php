@@ -18,7 +18,7 @@
     </main>
 
     <!-- FOOTER & LEGALES -->
-    <footer id="politicas" class="bg-stone-950 border-t border-stone-800 py-16 px-6 text-stone-500 text-xs">
+    {{-- <footer id="politicas" class="bg-stone-950 border-t border-stone-800 py-16 px-6 text-stone-500 text-xs">
         <div class="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
             <div>
                 <img src="{{ asset('logo_palomo.jpg') }}" alt="Logo Footer" class="h-12 mb-4 object-contain">
@@ -49,7 +49,9 @@
         <div class="max-w-7xl mx-auto border-t border-stone-900 pt-8 text-center text-stone-600">
             &copy; {{ date('Y') }} Dinámicas y Eventos El Palomo Negro. Todos los derechos reservados.
         </div>
-    </footer>
+    </footer> --}}
+
+    @include('layouts.footer')
 
     @stack('scripts')
 

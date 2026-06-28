@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Raffle;
+use App\Models\RaffleConfiguration;
 use App\Models\Ticket;
 use App\Models\TicketOrder;
 use Illuminate\Http\Request;
@@ -46,7 +47,6 @@ class RaffleController extends Controller
         $soldTickets = Ticket::where('raffle_id', $raffle->id)            
             ->get()
             ->flatMap(function ($ticket) {
-                // Si guardas estructurado como {"numbers": [...]} extraes la key, si es array directo dejas $ticket->ticket_numbers
                 $data = $ticket->ticket_numbers;
                 return isset($data['numbers']) ? $data['numbers'] : $data;
             })->toArray();
@@ -71,6 +71,9 @@ class RaffleController extends Controller
         $soldNumbersCount = count($soldTickets);
         $availableNumbersCount = $totalNumbers - $soldNumbersCount - count($pendingTickets);
 
+        // 🟢 Cargar los paquetes globales configurados
+        $packageMultiples = RaffleConfiguration::getVal('package_multiples', [1, 3, 5, 10]);
+
         return view('raffles.show', compact(
             'raffle',
             'soldTickets',
@@ -78,7 +81,8 @@ class RaffleController extends Controller
             'pendingTickets',
             'totalNumbers',
             'soldNumbersCount',
-            'availableNumbersCount'
+            'availableNumbersCount',
+            'packageMultiples'
         ));
     }
 

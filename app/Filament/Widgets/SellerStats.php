@@ -26,7 +26,7 @@ class SellerStats extends BaseWidget
         return [
             Stat::make('Mis Tickets Vendidos Hoy', $ticketsHoy)
                 ->description('Total registrado en el sistema')
-                ->descriptionIcon('heroicon-m-ticket')
+                ->descriptionIcon('heroicon-s-ticket')
                 ->color('success'),
         ];
     }
